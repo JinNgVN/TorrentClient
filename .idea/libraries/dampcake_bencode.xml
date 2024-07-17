@@ -1,0 +1,10 @@
+<component name="libraryTable">
+  <library name="dampcake.bencode" type="repository">
+    <properties maven-id="com.dampcake:bencode:1.4.1" />
+    <CLASSES>
+      <root url="jar://$MAVEN_REPOSITORY$/com/dampcake/bencode/1.4.1/bencode-1.4.1.jar!/" />
+    </CLASSES>
+    <JAVADOC />
+    <SOURCES />
+  </library>
+</component>
