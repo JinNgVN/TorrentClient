@@ -19,6 +19,6 @@ record Info(long pieceLength,
 
 }
 
-record FileInfo(long length, String path) {
+record FileInfo(long length, List<String> path) {
 
 }

@@ -6,6 +6,7 @@ import java.io.FileInputStream;
 import java.io.FileOutputStream;
 import java.io.IOException;
 import java.util.Arrays;
+import java.util.Collections;
 import java.util.LinkedList;
 import java.util.List;
 
@@ -214,7 +215,8 @@ public class TorrentParser {
                             //TODO: Add md5sum
                         }
                     }
-                    FileInfo fileTorrent = new FileInfo(length,path);
+                    //TODO: just changed the definition of FileInFo, need to change the parameter "path in the below statement"
+                    FileInfo fileTorrent = new FileInfo(length, Collections.singletonList(path));
                     fileInfos.add(fileTorrent);
                 }
                 this.files = fileInfos;
