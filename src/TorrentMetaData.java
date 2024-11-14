@@ -1,24 +1,24 @@
 import java.util.List;
 
-public record TorrentMetaData(Info info,
-                              String announce,
-                              String[][] announceList,
-                              String creationDate,
+public record TorrentMetaData(String announce,
+                              List<String> announceList,
+                              Long creationDate,
                               String comment,
                               String createdBy,
-                              String encoding) {
-}
+                              String encoding,
+                              Info info) {
+    public record Info(long pieceLength,
+                       byte[] pieces,
+                       boolean isPrivate,
+                       SingleModeInfo singleModeInfo,
+                       MultiModeInfo multiModeInfo) {
 
-record Info(long pieceLength,
-            byte[] pieces,
-            boolean isPrivate,
-            String name,
-            long length,
-//            String md5sum,
-            List<FileInfo> file) {
+        public record SingleModeInfo(String name, long length) {
+        }
 
-}
-
-record FileInfo(long length, List<String> path) {
-
+        public record MultiModeInfo(String name, List<File> files) {
+            public record File(long length, String path) {
+            }
+        }
+    }
 }
