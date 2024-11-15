@@ -6,6 +6,14 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 public class Bencode {
+    /**
+     * Decodes bencoded data into Java objects.
+     * @param data The bencoded byte array
+     * @param pointer Current position in the byte array
+     * @return Decoded object (String, Long, List, or Map)
+     * @throws BencodeException if the data is malformed
+     */
+    //TODO implement BencodeException
     public static Object decode(byte[] data, Pointer pointer) {
         switch (data[pointer.value]) {
             //Dictionary
@@ -102,13 +110,11 @@ public class Bencode {
                         ))
                         .collect(Collectors.toList());
 
-                System.out.println(files);
                 multiModeInfo = new TorrentMetaData.Info.MultiModeInfo(
                         (String) infoDictionary.get("name"),
                         files
                         );
             }
-            System.out.println(infoDictionary.get("piece length").getClass());
             info = new TorrentMetaData.Info(
                     (long) infoDictionary.get("piece length"),
                     ((String) infoDictionary.get("pieces")).getBytes(),
@@ -124,6 +130,7 @@ public class Bencode {
     }
 
     public static void main(String[] args) {
-        Bencode.parse("./src/SONE-448.torrent");
+        var data = Bencode.parse("./src/SONE-448.torrent");
+        System.out.println(data);
     }
 }
