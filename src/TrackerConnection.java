@@ -45,14 +45,7 @@ public class TrackerConnection {
     }
 
     private void sendHttpRequest() {
-        try (var httpClient = HttpClient.newBuilder()
-                // Protocol version (HTTP 1.1 is more widely supported for trackers)
-                .version(HttpClient.Version.HTTP_1_1)
-                // Timeouts
-                .connectTimeout(Duration.ofSeconds(15))
-                // Redirects
-                .followRedirects(HttpClient.Redirect.NORMAL)
-                .build()) {
+        try (var httpClient = SingeletonHttpClient.getClient()) {
 
             var request = HttpRequest.newBuilder()
                     .GET()
