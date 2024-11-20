@@ -1,3 +1,4 @@
+import java.io.IOException;
 import java.net.URI;
 import java.net.http.HttpClient;
 import java.net.http.HttpRequest;
@@ -5,6 +6,7 @@ import java.net.http.HttpResponse;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.CompletionException;
 
 public class TrackerConnection {
     private int minInterval;
@@ -49,33 +51,46 @@ public class TrackerConnection {
     }
 
     // send request -> (if error, handle it) -> receive response -> parse response & get all information -> store in a class TrackerResponseState ->
-    // -> schedule to send announce at every x seconds -> receive response and parse it -> update TrackerReponseState
+    // -> schedule to send announce at every x seconds -> receive response and parse it -> update TrackerResponseState
     // update all the states before sending request: uploaded, downloaded, left, event
     //
     //
     private void sendHttpRequest(TrackerEvent event) {
-        System.out.println("HTTP Request: " + annouceUrl);
         var httpClient = SingletonHttpClient.getClient();
         String fullUrl = buildFullUrl(event);
 
         var request = HttpRequest.newBuilder()
                 .GET()
                 .header("User-Agent", "BitTorrent/1.0")
-                .uri(URI.create(fullUrl)).build();
+                .uri(URI.create(fullUrl))
+                .build();
 
-        var x = httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
-                .thenAccept(this::handleResponse);
+        httpClient.sendAsync(request, HttpResponse.BodyHandlers.ofByteArray())
+                .thenAccept(this::handleResponse)
+                .exceptionally(throwable -> {
+                    // Unwrap CompletionException
+                    Throwable cause = throwable instanceof CompletionException ?
+                            throwable.getCause() : throwable;
+                    System.err.println("Error type: " + cause.getClass().getSimpleName());
+                    System.err.println("Error message: " + cause.getMessage());
+                    cause.printStackTrace();  // Print full stack trace
+                    return null;
+                });
 
+        // Add delay to keep program running
+        try {
+            Thread.sleep(5000);  // Wait 5 seconds for response
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+        }
     }
 
     private void handleResponse(HttpResponse<byte[]> response) {
-        System.out.println("handleResponse: ");
         if (response.statusCode() != 200) {
             throw new TrackerException("HTTP error: " + response.statusCode());
         }
         try {
             var decoded = (Map<String, Object>) Bencode.decode(response.body());
-            System.out.println(decoded);
             if (decoded.containsKey("failure reason")) {
                 throw new TrackerException("Failure reason: " + decoded.get("failure reason"));
             }
