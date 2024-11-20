@@ -1,18 +1,18 @@
 import java.nio.ByteBuffer;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 public class Learning {
 
     public static void main(String[] args) {
 
-        ByteBuffer buffer = ByteBuffer.allocate(16);
-        buffer.putInt(1);
-        buffer.putInt(10);
-        buffer.putDouble(4.56);
-        buffer.flip();
-        buffer.mark();
-        System.out.println(buffer.getInt());
-        System.out.println(buffer.getInt());
-        System.out.println(buffer.getDouble());
-
+        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
+        scheduler.scheduleWithFixedDelay(
+                () -> System.out.println("hello"),
+                1,
+                1,
+                TimeUnit.SECONDS
+        );
     }
 }

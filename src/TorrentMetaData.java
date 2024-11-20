@@ -1,12 +1,13 @@
 import java.util.List;
 
 public record TorrentMetaData(String announce,
-                              List<String> announceList,
+                              List<List<String>> announceList,
                               Long creationDate,
                               String comment,
                               String createdBy,
                               String encoding,
-                              Info info) {
+                              Info info,
+                              byte[] infoHash) {
     public record Info(long pieceLength,
                        byte[] pieces,
                        boolean isPrivate,
