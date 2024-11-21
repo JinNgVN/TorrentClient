@@ -71,7 +71,7 @@ public class UdpConnection {
         } catch (IOException e) {
             throw new RuntimeException(e);
         }
-        connectRequestBuffer.rewind()
+        connectRequestBuffer.rewind();
 
         //receive response
         ByteBuffer responseConnectBuffer = ByteBuffer.allocate(CONNECT_RESPONSE_BUFFER_SIZE);
