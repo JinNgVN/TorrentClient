@@ -1,18 +1,15 @@
+import java.io.IOException;
+import java.net.InetAddress;
+import java.net.InetSocketAddress;
 import java.nio.ByteBuffer;
-import java.util.concurrent.Executors;
-import java.util.concurrent.ScheduledExecutorService;
-import java.util.concurrent.TimeUnit;
+import java.nio.channels.DatagramChannel;
 
 public class Learning {
+    private static final int MAX_RETRIES = 3;
+    private static final long TIMEOUT = 1000; // 1 second timeout
 
-    public static void main(String[] args) {
-
-        ScheduledExecutorService scheduler = Executors.newSingleThreadScheduledExecutor();
-        scheduler.scheduleWithFixedDelay(
-                () -> System.out.println("hello"),
-                1,
-                1,
-                TimeUnit.SECONDS
-        );
+    public static void main(String[] args) throws IOException {
+        System.out.println(InetAddress.getLocalHost());
+        ByteBuffer buffer = ByteBuffer.allocateDirect();
     }
 }
