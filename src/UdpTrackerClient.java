@@ -8,7 +8,7 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
-public class UdpConnection {
+public class UdpTrackerClient {
     private final byte[] peerId;
     private final String annouceUrl;
     private final byte[] infoHash;
@@ -46,7 +46,7 @@ public class UdpConnection {
         }
     }
 
-    public UdpConnection(String announceUrl, byte[] peerId, byte[] infoHash) {
+    public UdpTrackerClient(String announceUrl, byte[] peerId, byte[] infoHash) {
         this.annouceUrl = announceUrl;
         this.peerId = peerId;
         this.infoHash = infoHash;
@@ -192,5 +192,4 @@ public class UdpConnection {
         int port = Integer.parseInt(parts[1]);
         return new InetSocketAddress(host, port);
     }
-
 }
