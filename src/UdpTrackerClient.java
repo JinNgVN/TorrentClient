@@ -24,40 +24,46 @@ public class UdpTrackerClient {
     private final int key = RANDOM.nextInt();
 
     //constant
+    //connect request
     private static final int CONNECT_REQUEST_BUFFER_SIZE = 16;
+    private final ByteBuffer connectRequestBuffer = ByteBuffer.allocate(CONNECT_REQUEST_BUFFER_SIZE);
+
+    //connect response
     private static final int CONNECT_RESPONSE_BUFFER_SIZE = 16;
-    private static final long MAGIC_CONSTANT = 0x41727101980L;
-    private static final int ACTION_CONNECT = 0;
-    private static final int ACTION_ANNOUNCE = 1;
+    private final ByteBuffer responseConnectBuffer = ByteBuffer.allocate(CONNECT_RESPONSE_BUFFER_SIZE);
+
+    //announce request
     private static final int ANNOUNCE_REQUEST_BUFFER_SIZE = 98;
-    private static final int DEFAULT_NUMWANT = -1;
+    private final ByteBuffer announceBuffer = ByteBuffer.allocate(ANNOUNCE_REQUEST_BUFFER_SIZE);
+
+    //announce response
     private static final int INITIAL_ANNOUNCE_RESPONSE_BUFFER_SIZE = 1024;
     private static final int MINIMUM_ANNOUNCE_RESPONSE_BUFFER_SIZE = 20;
+    private final ByteBuffer responseAnnounceBuffer = ByteBuffer.allocate(INITIAL_ANNOUNCE_RESPONSE_BUFFER_SIZE);
+
+    private static final int ACTION_CONNECT = 0;
+    private static final int ACTION_ANNOUNCE = 1;
+    private static final long MAGIC_CONSTANT = 0x41727101980L;
+    private static final int DEFAULT_NUMWANT = -1;
     private static final int PEER_LENGTH = 6;
 
 
-    private static final DatagramChannel channel;
-    static {
-        try {
-            channel = DatagramChannel.open();
-            channel.configureBlocking(false);
-        } catch (IOException e) {
-            throw new RuntimeException(e);
-        }
-    }
+    private final DatagramChannel channel;
 
-    public UdpTrackerClient(String announceUrl, byte[] peerId, byte[] infoHash) {
+
+    public UdpTrackerClient(String announceUrl, byte[] peerId, byte[] infoHash) throws IOException {
         this.annouceUrl = announceUrl;
         this.peerId = peerId;
         this.infoHash = infoHash;
-
+        channel = DatagramChannel.open();
+        channel.configureBlocking(false);
+        channel.connect(parseUdpAnnounceUrl(announceUrl));
     }
 
     private void sendUdpRequest(TrackerEvent event) {
         System.out.println(annouceUrl);
         InetSocketAddress address = parseUdpAnnounceUrl(annouceUrl);
         //prepare packet for connection request
-        ByteBuffer connectRequestBuffer = ByteBuffer.allocate(CONNECT_REQUEST_BUFFER_SIZE);
         connectRequestBuffer.order(ByteOrder.BIG_ENDIAN);
         connectRequestBuffer.putLong(MAGIC_CONSTANT); //magic constant
         connectRequestBuffer.putInt(ACTION_CONNECT); // action = connect = 0
@@ -74,7 +80,6 @@ public class UdpTrackerClient {
         connectRequestBuffer.rewind();
 
         //receive response
-        ByteBuffer responseConnectBuffer = ByteBuffer.allocate(CONNECT_RESPONSE_BUFFER_SIZE);
         responseConnectBuffer.clear();
         System.out.println(Arrays.toString(responseConnectBuffer.array()));
         try {
@@ -101,7 +106,6 @@ public class UdpTrackerClient {
         long connectionId = responseConnectBuffer.getLong();
 
         //prepare packet for announce request
-        ByteBuffer announceBuffer = ByteBuffer.allocate(ANNOUNCE_REQUEST_BUFFER_SIZE);
         announceBuffer.order(ByteOrder.BIG_ENDIAN);
 
         announceBuffer.putLong(connectionId);
@@ -127,7 +131,6 @@ public class UdpTrackerClient {
             throw new RuntimeException(e);
         }
         //receive response
-        ByteBuffer responseAnnounceBuffer = ByteBuffer.allocate(INITIAL_ANNOUNCE_RESPONSE_BUFFER_SIZE);
         responseAnnounceBuffer.clear();
         try {
             channel.receive(responseAnnounceBuffer);
@@ -191,5 +194,8 @@ public class UdpTrackerClient {
         String host = parts[0];
         int port = Integer.parseInt(parts[1]);
         return new InetSocketAddress(host, port);
+    }
+
+    public void announce() {
     }
 }

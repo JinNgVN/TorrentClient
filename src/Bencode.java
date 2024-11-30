@@ -80,10 +80,11 @@ public class Bencode {
 
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(path))) {
             var data = bis.readAllBytes();
+
             var decodedData = (Map<?, ?>) decode(data);
             //get some metadata
             announce = (String) decodedData.get("announce");
-            announceList = (List<List<String>>) decodedData.get("announce-list");
+            announceList =  (List<List<String>>) (List<?>) decodedData.get("announce-list");
             creationDate = (Long) decodedData.get("creation date");
             comment = (String) decodedData.get("comment");
             createdBy = (String) decodedData.get("created by");
@@ -130,10 +131,8 @@ public class Bencode {
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
             infoHash = sha1.digest(encode(infoDictionary));
 
-        } catch (IOException e) {
-            System.out.println(e.getMessage());
-        } catch (NoSuchAlgorithmException e) {
-            throw new RuntimeException(e);
+        } catch (IOException | NoSuchAlgorithmException | ClassCastException e) {
+           throw new RuntimeException(e);
         }
         return new TorrentMetaData(announce, announceList, creationDate, comment, createdBy, encoding, info, infoHash);
     }
@@ -144,7 +143,7 @@ public class Bencode {
             case Number n -> encodeInteger(n.longValue());
             case List<?> list -> encodeList(list);
             case Map<?, ?> map -> encodeMap(map);
-            default -> throw new BencodeException("Wrong torrent format!");
+            default -> throw new BencodeException("Invalid torrent format!");
         };
     }
 
@@ -208,17 +207,4 @@ public class Bencode {
         }
     }
 
-    public static void main(String[] args) {
-        var data = Bencode.parse("./src/file.torrent");
-        System.out.println(Arrays.toString(data.infoHash()));
-        ;
-
-        //        System.out.println(data);}
-//        Map<String, Object> map = new HashMap<>();
-//        map.put("Hello", 5L);
-//        map.put("World", 10L);
-//        map.put("Map", List.of(1,2,3,4,"world"));
-//        System.out.println(new String(Bencode.encode(map)));
-
-    }
 }

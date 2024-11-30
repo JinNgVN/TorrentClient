@@ -6,38 +6,13 @@ import java.util.List;
 import java.nio.charset.StandardCharsets;
 
 public class TrackerManager {
-    private final List<UdpConnection> trackerConnections;
     private static final String CLIENT_ID = "JB";
     private static final String VERSION = "0001";
     private static final SecureRandom RANDOM = new SecureRandom();
+    private final String pathToTorrent;
 
-    public TrackerManager(String torrentPath) throws IOException {
-        // Parse torrent file
-        var torrentData = Bencode.parse(torrentPath);
-
-        // Generate peer ID
-        byte[] peerId = generate();
-
-        // Collect announce URLs
-        List<String> announceUrls = new ArrayList<>();
-        announceUrls.add(torrentData.announce());
-
-        // Handle announce-list (list of lists)
-        if (torrentData.announceList() != null) {
-            torrentData.announceList().stream()
-                    .flatMap(List::stream)  // Flatten list of lists
-                    .forEach(announceUrls::add);
-        }
-        Selector selector = Selector.open();
-        // Create tracker connections
-        this.trackerConnections = announceUrls.stream().filter(url -> url.startsWith("udp://"))
-                .map(url -> new UdpConnection(
-                        url,
-                        peerId,
-                        torrentData.infoHash(),
-                        selector
-                ))
-                .toList();  // Creates immutable list
+    public TrackerManager(String pathToTorrent) throws IOException {
+        this.pathToTorrent = pathToTorrent;
     }
 
     private static byte[] generate() {
@@ -54,13 +29,39 @@ public class TrackerManager {
         return peerId.toString().getBytes(StandardCharsets.UTF_8);
     }
 
-    public void start() {
-        // Start all tracker connections
-        trackerConnections.forEach(UdpConnection::startTracking);
+    public void getPeer() {
+        // Parse torrent file
+        TorrentMetaData torrentData = Bencode.parse(pathToTorrent);
+
+        // Generate peer ID
+        byte[] peerId = generate();
+
+        // Collect announce URLs
+        List<String> announceUrls = new ArrayList<>();
+        announceUrls.add(torrentData.announce());
+
+        // Handle announce-list (list of lists)
+        if (torrentData.announceList() != null) {
+            torrentData.announceList().stream()
+                    .flatMap(List::stream)  // Flatten list of lists
+                    .filter(url -> url.startsWith("udp://"))
+                    .forEach(announceUrls::add);
+        }
+        System.out.println(announceUrls);
+
+        for (String announceUrl : announceUrls) {
+            try {
+                UdpTrackerClient client = new UdpTrackerClient(announceUrl, peerId, torrentData.infoHash());
+                client.announce();
+            } catch (IOException e) {
+                throw new RuntimeException(e);
+            }
+
+        }
     }
 
     public static void main(String[] args) throws IOException {
         TrackerManager manager = new TrackerManager("./src/file.torrent");
-        manager.start();
+        manager.getPeer();
     }
 }
