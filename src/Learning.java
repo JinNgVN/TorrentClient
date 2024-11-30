@@ -8,19 +8,15 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.concurrent.CountDownLatch;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.nio.channels.SelectionKey;
+import java.nio.channels.Selector;
+import java.nio.charset.StandardCharsets;
+import java.util.Arrays;
+import java.util.Iterator;
+import java.util.Scanner;
+import java.util.Set;
 
 public class Learning {
-
-    private static final int PORT = 9876;
-    private static final String HOST = "localhost";
-    private static final int NUM_CLIENTS = 100;
-    private static final int BUFFER_SIZE = 1024;
-
-    public static void main(String[] args) {
-
-
-    }
-
 
 
 }

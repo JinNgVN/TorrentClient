@@ -1,15 +1,17 @@
+import java.io.IOException;
+import java.nio.channels.Selector;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
 
 public class TrackerManager {
-    private final List<TrackerConnection> trackerConnections;
+    private final List<UdpConnection> trackerConnections;
     private static final String CLIENT_ID = "JB";
     private static final String VERSION = "0001";
     private static final SecureRandom RANDOM = new SecureRandom();
 
-    public TrackerManager(String torrentPath) {
+    public TrackerManager(String torrentPath) throws IOException {
         // Parse torrent file
         var torrentData = Bencode.parse(torrentPath);
 
@@ -26,12 +28,14 @@ public class TrackerManager {
                     .flatMap(List::stream)  // Flatten list of lists
                     .forEach(announceUrls::add);
         }
+        Selector selector = Selector.open();
         // Create tracker connections
-        this.trackerConnections = announceUrls.stream()
-                .map(url -> new TrackerConnection(
+        this.trackerConnections = announceUrls.stream().filter(url -> url.startsWith("udp://"))
+                .map(url -> new UdpConnection(
                         url,
                         peerId,
-                        torrentData.infoHash()
+                        torrentData.infoHash(),
+                        selector
                 ))
                 .toList();  // Creates immutable list
     }
@@ -52,10 +56,10 @@ public class TrackerManager {
 
     public void start() {
         // Start all tracker connections
-        trackerConnections.forEach(TrackerConnection::sendRequest);
+        trackerConnections.forEach(UdpConnection::startTracking);
     }
 
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         TrackerManager manager = new TrackerManager("./src/file.torrent");
         manager.start();
     }

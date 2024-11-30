@@ -59,7 +59,7 @@ public class TrackerConnection {
     //
     //
     private void sendHttpRequest(TrackerEvent event) {
-        var httpClient = SingletonHttpClient.getClient();
+//        var httpClient = SingletonHttpClient.getClient();
         String fullUrl = buildFullUrl(event);
 
         var request = HttpRequest.newBuilder()
