@@ -32,30 +32,28 @@ public class SelectorManager {
         Thread selectorThread = new Thread(() -> {
             try {
                 while (true) {
-                    int readyChannels = selector.select();
+                    int readyChannels = selector.select(1000);
                     if (readyChannels == 0) continue;
                     Iterator<SelectionKey> selectedKeys = selector.selectedKeys().iterator();
                     while (selectedKeys.hasNext()) {
                         SelectionKey key = selectedKeys.next();
-                        selectedKeys.remove();
-
-                        if (!key.isValid()) continue;
 
                         if (key.isReadable()) {
                             DatagramChannel channel = (DatagramChannel) key.channel();
                             UdpTrackerClient client = connections.get(channel);
                             if (client != null) {
-                                //currentConnection.receive();
+                                client.handleResponse();
                             }
                         }
 
+                        selectedKeys.remove();
                     }
                 }
             } catch (IOException e) {
                 e.printStackTrace();
             }
         });
-        selectorThread.setDaemon(true); //ensure this thread doesn't stop JVM to shut down
+//        selectorThread.setDaemon(true); //ensure this thread doesn't stop JVM to shut down
         selectorThread.start();
     }
 

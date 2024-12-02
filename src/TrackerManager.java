@@ -1,5 +1,6 @@
 import java.io.IOException;
 import java.nio.channels.Selector;
+import java.nio.channels.UnresolvedAddressException;
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
@@ -51,10 +52,10 @@ public class TrackerManager {
 
         for (String announceUrl : announceUrls) {
             try {
-                UdpTrackerClient client = new UdpTrackerClient(announceUrl, peerId, torrentData.infoHash());
-                client.announce();
-            } catch (IOException e) {
-                throw new RuntimeException(e);
+                UdpTrackerClient client = new UdpTrackerClient(announceUrl, peerId, torrentData.infoHash(), torrentData.size());
+                client.startAnnouncing();
+            } catch (IOException | UnresolvedAddressException e) {
+                System.out.println("Failed to announce: " + announceUrl + ": " + e.getMessage());
             }
 
         }
@@ -63,5 +64,10 @@ public class TrackerManager {
     public static void main(String[] args) throws IOException {
         TrackerManager manager = new TrackerManager("./src/file.torrent");
         manager.getPeer();
+        try {
+            Thread.sleep(5000);
+        } catch (InterruptedException e) {
+            throw new RuntimeException(e);
+        }
     }
 }
