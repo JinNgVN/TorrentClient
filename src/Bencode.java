@@ -127,9 +127,7 @@ public class Bencode {
                     multiModeInfo
             );
 
-            //get infoHash
-            MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-            infoHash = sha1.digest(encode(infoDictionary));
+            infoHash = calculateInfoHash(data);
 
         } catch (IOException | NoSuchAlgorithmException | ClassCastException e) {
            throw new RuntimeException(e);
@@ -205,6 +203,43 @@ public class Bencode {
         } catch (IOException e) {
             throw new BencodeException("Failed to encode map", e);
         }
+    }
+
+    private static int findInfoDictStart(byte[] data) {
+        // Look for "4:info" marker
+        String marker = "4:info";
+        for (int i = 0; i < data.length - marker.length(); i++) {
+            if (new String(data, i, marker.length()).equals(marker)) {
+                return i + marker.length();
+            }
+        }
+        return -1;
+    }
+
+    private static int findInfoDictEnd(byte[] data, int startIndex) {
+        int depth = 0;
+        for (int i = startIndex; i < data.length; i++) {
+            if (data[i] == 'd') depth++;
+            if (data[i] == 'e') {
+                depth--;
+                if (depth == 0) return i + 1;
+            }
+        }
+        return -1;
+    }
+
+    public static byte[] calculateInfoHash(byte[] torrentBytes) throws NoSuchAlgorithmException {
+        // Find the info dictionary boundaries
+        int startIndex = findInfoDictStart(torrentBytes);
+//        int endIndex = findInfoDictEnd(torrentBytes, startIndex);
+
+        // Extract the info dictionary bytes
+        byte[] infoBytes = Arrays.copyOfRange(torrentBytes, startIndex, torrentBytes.length - 1);
+        System.out.println(new String(infoBytes));
+
+        // Calculate SHA-1 hash
+        MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
+        return sha1.digest(infoBytes);
     }
 
 }

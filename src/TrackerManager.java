@@ -5,6 +5,7 @@ import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.List;
 import java.nio.charset.StandardCharsets;
+import java.util.Random;
 
 public class TrackerManager {
     private static final String CLIENT_ID = "JB";
@@ -30,12 +31,31 @@ public class TrackerManager {
         return peerId.toString().getBytes(StandardCharsets.UTF_8);
     }
 
+    public static byte[] generatePeerId(String clientId, String version) {
+        // Using Azureus-style: -XX1234-[random letters]
+        StringBuilder peerId = new StringBuilder(20);
+
+        // Example using 'AZ' for Azureus: -AZ2060-
+        peerId.append('-');           // Leading dash
+        peerId.append("AZ");         // Azureus client identifier
+        peerId.append("2060");       // Version 2.6.0
+        peerId.append('-');          // Trailing dash
+
+        // Fill remaining 12 bytes with random characters
+        Random random = new Random();
+        for (int i = 0; i < 12; i++) {
+            peerId.append((char)(random.nextInt(26) + 'a'));
+        }
+
+        return peerId.toString().getBytes();
+    }
+
     public void getPeer() {
         // Parse torrent file
         TorrentMetaData torrentData = Bencode.parse(pathToTorrent);
 
         // Generate peer ID
-        byte[] peerId = generate();
+        byte[] peerId = generatePeerId("MT", "1.2.3");
 
         // Collect announce URLs
         List<String> announceUrls = new ArrayList<>();
@@ -48,7 +68,7 @@ public class TrackerManager {
                     .filter(url -> url.startsWith("udp://"))
                     .forEach(announceUrls::add);
         }
-        System.out.println(announceUrls);
+        announceUrls.forEach(System.out::println);
 
         for (String announceUrl : announceUrls) {
             try {
@@ -64,10 +84,5 @@ public class TrackerManager {
     public static void main(String[] args) throws IOException {
         TrackerManager manager = new TrackerManager("./src/file.torrent");
         manager.getPeer();
-        try {
-            Thread.sleep(5000);
-        } catch (InterruptedException e) {
-            throw new RuntimeException(e);
-        }
     }
 }

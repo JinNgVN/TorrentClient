@@ -6,7 +6,6 @@ import java.nio.channels.DatagramChannel;
 import java.nio.channels.UnresolvedAddressException;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
 import java.util.Random;
 
@@ -31,12 +30,20 @@ public class UdpTrackerClient {
     //connect request
     private static final int CONNECT_REQUEST_BUFFER_SIZE = 16;
     private final ByteBuffer connectRequestBuffer = ByteBuffer.allocate(CONNECT_REQUEST_BUFFER_SIZE);
-
-    //connect response
     private static final int CONNECT_RESPONSE_BUFFER_SIZE = 16;
+
     //announce request
     private static final int ANNOUNCE_REQUEST_BUFFER_SIZE = 98;
     private final ByteBuffer announceRequestBuffer = ByteBuffer.allocate(ANNOUNCE_REQUEST_BUFFER_SIZE);
+    private static final int INITIAL_ANNOUNCE_RESPONSE_BUFFER_SIZE = 1024;
+
+    //scrape request
+    private static final int MINIMUM_ANNOUNCE_RESPONSE_BUFFER_SIZE = 20;
+    private static final int SCAPRE_REQUEST_BUFFER_SIZE = 36;
+    private final ByteBuffer scrapeRequestBuffer= ByteBuffer.allocate(SCAPRE_REQUEST_BUFFER_SIZE);
+    private static final int MINIMUM_SCAPRE_RESPONSE_BUFFER_SIZE = 8;
+    private boolean isScraped = false;
+
     //receive buffer
     private final ByteBuffer receiveBuffer = ByteBuffer.allocate(INITIAL_ANNOUNCE_RESPONSE_BUFFER_SIZE);
     private static final int ACTION_CONNECT = 0;
@@ -44,17 +51,14 @@ public class UdpTrackerClient {
     private static final int ACTION_SCRAPE = 2;
     private static final int ACTION_ERROR = 3;
 
-    //announce response
-    private static final int INITIAL_ANNOUNCE_RESPONSE_BUFFER_SIZE = 1024;
-    private static final int MINIMUM_ANNOUNCE_RESPONSE_BUFFER_SIZE = 20;
-
     //error response
     private static final int MINIMUM_ERROR_MESSAGE = 8;
+
+    private long connectionId;
 
     private static final long MAGIC_CONSTANT = 0x41727101980L;
     private static final int DEFAULT_NUMWANT = -1;
     private static final int PEER_LENGTH = 6;
-
 
     private final DatagramChannel channel;
 
@@ -95,6 +99,13 @@ public class UdpTrackerClient {
         int action = receiveBuffer.getInt();
         int transactionId = receiveBuffer.getInt();
 
+        System.out.println("Action: " + switch (action) {
+            case ACTION_CONNECT -> "CONNECT";
+            case ACTION_ANNOUNCE -> "ANNOUNCE";
+            case ACTION_SCRAPE -> "SCRAPE";
+            case ACTION_ERROR -> "ERROR";
+            default -> "Error Action: " + action;
+        });
 
         switch (action) {
             case ACTION_CONNECT -> {
@@ -107,8 +118,11 @@ public class UdpTrackerClient {
                     throw new TrackerException("Connect Request: Received different transactionId");
                 }
                 //get connectionId
-                long connectionId = receiveBuffer.getLong();
-                sendAnnounceRequest(connectionId, TrackerEvent.STARTED); //TODO have to change the event dynamically
+                connectionId = receiveBuffer.getLong();
+
+                if (!isScraped) {
+                     sendScrapeRequest();
+                } else sendAnnounceRequest(TrackerEvent.STARTED);
             }
             case ACTION_ANNOUNCE -> {
                 System.out.println("Received announce response");
@@ -119,6 +133,7 @@ public class UdpTrackerClient {
                 if (transactionId != this.transactionId) {
                     throw new TrackerException("Announce Request: Received different transactionId");
                 }
+
                 int interval = receiveBuffer.getInt(); //TODO assign to instance variable instead - PEER_SIZE = 6
                 int leechers = receiveBuffer.getInt();
                 int seeders = receiveBuffer.getInt();
@@ -129,7 +144,25 @@ public class UdpTrackerClient {
                 System.out.println("Peers: " +peers);
             }
             case ACTION_SCRAPE -> {
+                System.out.println("Received scrape response");
+                if (size < MINIMUM_SCAPRE_RESPONSE_BUFFER_SIZE) {
+                    throw new TrackerException("Scrape Request: Received buffer is smaller than 20 bytes");
+                }
+                //check transactionId
+                if (transactionId != this.transactionId) {
+                    throw new TrackerException("Scrape Request: Received different transactionId");
+                }
+                int remainingBytes = receiveBuffer.remaining();
+                int numTorrents = remainingBytes / 12;
 
+                for (int i = 0; i < numTorrents; i++) {
+                    int seeders = receiveBuffer.getInt();
+                    int completed = receiveBuffer.getInt();
+                    int leechers = receiveBuffer.getInt();
+                    System.out.println("Seeders: " + seeders + " | Completed: " + completed + " | leechers: " + leechers );
+                }
+                isScraped = true;
+                sendAnnounceRequest(TrackerEvent.STARTED);
             }
             case ACTION_ERROR -> {
                 if (size < MINIMUM_ERROR_MESSAGE) {
@@ -150,6 +183,7 @@ public class UdpTrackerClient {
     }
 
     private void sendConnectRequest() throws IOException {
+        System.out.println("Send CONNECT request");
         //build connect request packet
         connectRequestBuffer.clear();
         connectRequestBuffer.putLong(MAGIC_CONSTANT); //magic constant
@@ -162,8 +196,9 @@ public class UdpTrackerClient {
         channel.write(connectRequestBuffer);
     }
 
-    private void sendAnnounceRequest(long connectionId, TrackerEvent event) throws IOException {
+    private void sendAnnounceRequest( TrackerEvent event) throws IOException {
         //build announce request packet
+        System.out.println("Send ANNOUNCE request");
         announceRequestBuffer.clear();
         announceRequestBuffer.putLong(connectionId);
         announceRequestBuffer.putInt(ACTION_ANNOUNCE); //action = announce = 1
@@ -183,6 +218,20 @@ public class UdpTrackerClient {
         //sending announce request
         announceRequestBuffer.flip();
         channel.write(announceRequestBuffer);
+    }
+
+    private void sendScrapeRequest() throws IOException {
+        System.out.println("Send SCRAPE request");
+        System.out.println(infoHash.length);
+        scrapeRequestBuffer.clear();
+        scrapeRequestBuffer.putLong(connectionId);
+        scrapeRequestBuffer.putInt(ACTION_SCRAPE);
+        transactionId = RANDOM.nextInt();
+        scrapeRequestBuffer.putInt(transactionId);
+        scrapeRequestBuffer.put(infoHash);
+
+        scrapeRequestBuffer.flip();
+        channel.write(scrapeRequestBuffer);
     }
 
     private void extractPeers(ByteBuffer responseAnnounceBuffer) {

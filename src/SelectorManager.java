@@ -53,7 +53,7 @@ public class SelectorManager {
                 e.printStackTrace();
             }
         });
-//        selectorThread.setDaemon(true); //ensure this thread doesn't stop JVM to shut down
+        selectorThread.setDaemon(false); //ensure this thread doesn't stop JVM to shut down
         selectorThread.start();
     }
 

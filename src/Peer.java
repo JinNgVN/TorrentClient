@@ -6,4 +6,9 @@ public class Peer {
         this.port = port;
 
     }
+
+    @Override
+    public String toString() {
+        return "Peer [ip=" + ip + ", port=" + port + "]";
+    }
 }
