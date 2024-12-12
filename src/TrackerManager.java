@@ -72,7 +72,10 @@ public class TrackerManager {
 
         for (String announceUrl : announceUrls) {
             try {
-                UdpTrackerClient client = new UdpTrackerClient(announceUrl, peerId, torrentData.infoHash(), torrentData.size());
+                UdpTrackerClient client = new UdpTrackerClient(announceUrl,
+                        peerId,
+                        torrentData.infoHash(),
+                        torrentData.size());
                 client.startAnnouncing();
             } catch (IOException | UnresolvedAddressException e) {
                 System.out.println("Failed to announce: " + announceUrl + ": " + e.getMessage());
