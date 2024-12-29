@@ -12,20 +12,27 @@ public class Bencode {
             case 'i' -> decodeLong(data, p);
             case 'l' -> decodeList(data, p);
             case 'd' -> decodeMap(data, p);
-            default -> decodeString(data, p);
+            case '1', '2', '3', '4', '5', '6', '7', '8', '9', '0' -> decodeString(data, p);
+            default -> throw new IllegalArgumentException("Invalid Bencode");
         };
     }
 
     private static String decodeString(byte[] data, Pointer p) {
         StringBuilder builder = new StringBuilder();
         while (data[p.value] != ':') {
+            if (!Character.isDigit(data[p.value])) {
+                throw new IllegalArgumentException("Invalid length prefix");
+            }
             builder.append((char) data[p.value]);
             p.value++;
         }
         p.value++; // skip ':'
 
         int length = Integer.parseInt(builder.toString());
-        String result = new String(data, p.value, length);
+        if (p.value + length > data.length) {
+            throw new IllegalArgumentException("String length exceeds data bound");
+        }
+        String result = new String(data, p.value, length, StandardCharsets.ISO_8859_1);
         p.value += length;
         return result;
     }
@@ -34,6 +41,9 @@ public class Bencode {
         p.value++; // skip 'i'
         StringBuilder builder = new StringBuilder();
         while (data[p.value] != 'e') {
+            if (!Character.isDigit(data[p.value])) {
+                throw new IllegalArgumentException("Invalid bencoded number");
+            }
             builder.append((char) data[p.value]);
             p.value++;
         }
@@ -69,36 +79,21 @@ public class Bencode {
     }
 
     public static TorrentMetaData parse(String path) {
-        String announce = null;
-        List<List<String>> announceList = null;
-        Long creationDate = null;
-        String comment = null;
-        String createdBy = null;
-        String encoding = null;
-        TorrentMetaData.Info info = null;
-        byte[] infoHash = null;
-
         try (BufferedInputStream bis = new BufferedInputStream(new FileInputStream(path))) {
             var data = bis.readAllBytes();
 
             var decodedData = (Map<?, ?>) decode(data);
-            //get some metadata
-            announce = (String) decodedData.get("announce");
-            announceList =  (List<List<String>>) (List<?>) decodedData.get("announce-list");
-            creationDate = (Long) decodedData.get("creation date");
-            comment = (String) decodedData.get("comment");
-            createdBy = (String) decodedData.get("created by");
-            encoding = (String) decodedData.get("encoding");
+
 
             //get info
-            TorrentMetaData.Info.SingleModeInfo singleModeInfo = null;
-            TorrentMetaData.Info.MultiModeInfo multiModeInfo = null;
+            TorrentMetaData.SingleModeInfo singleModeInfo = null;
+            TorrentMetaData.MultiModeInfo multiModeInfo = null;
             var infoDictionary = (Map<?, ?>) decodedData.get("info");
 
             //check if single file mode or multiple file mode
             if (infoDictionary.get("files") == null) {
                 //single file mode
-                singleModeInfo = new TorrentMetaData.Info.SingleModeInfo(
+                singleModeInfo = new TorrentMetaData.SingleModeInfo(
                         (String) infoDictionary.get("name"),
                         (long) infoDictionary.get("length")
                 );
@@ -106,35 +101,50 @@ public class Bencode {
                 //multiple file mode
                 var listFile = (List<Map<?, ?>>) infoDictionary.get("files");
                 var files = listFile.stream()
-                        .map(fileMap -> new TorrentMetaData.Info.MultiModeInfo.File(
+                        .map(fileMap -> new TorrentMetaData.MultiModeInfo.File(
                                 (long) fileMap.get("length"),
                                 // Assuming path is a List<String> and we take the first element
                                 ((List<String>) fileMap.get("path")).get(0)
                         ))
                         .collect(Collectors.toList());
 
-                multiModeInfo = new TorrentMetaData.Info.MultiModeInfo(
+                multiModeInfo = new TorrentMetaData.MultiModeInfo(
                         (String) infoDictionary.get("name"),
                         files
                 );
             }
 
-            info = new TorrentMetaData.Info(
-                    (long) infoDictionary.get("piece length"),
-                    ((String) infoDictionary.get("pieces")).getBytes(),
-                    infoDictionary.get("private") != null, //TODO have to check the value of private if set
-                    singleModeInfo,
-                    multiModeInfo
-            );
 
-            //get infoHash
             MessageDigest sha1 = MessageDigest.getInstance("SHA-1");
-            infoHash = sha1.digest(encode(infoDictionary));
+            byte[] infoHash = sha1.digest(encode(infoDictionary));
+            //get metadata
+            String announce = (String) decodedData.get("announce");
+            List<List<String>> announceList = (List<List<String>>) (List<?>) decodedData.get("announce-list");
+            Long creationDate = (Long) decodedData.get("creation date");
+            String comment = (String) decodedData.get("comment");
+            String createdBy = (String) decodedData.get("created by");
+            String encoding = (String) decodedData.get("encoding");
+            Long pieceLength = (Long) infoDictionary.get("piece length");
+            byte[] pieces = ((String) infoDictionary.get("pieces")).getBytes();
+            boolean isPrivate = false;
+
+
+            return new TorrentMetaData(announce,
+                    announceList,
+                    creationDate,
+                    comment,
+                    createdBy,
+                    encoding,
+                    infoHash,
+                    pieceLength,
+                    pieces,
+                    isPrivate,
+                    singleModeInfo,
+                    multiModeInfo);
 
         } catch (IOException | NoSuchAlgorithmException | ClassCastException e) {
-           throw new RuntimeException(e);
+            throw new RuntimeException(e);
         }
-        return new TorrentMetaData(announce, announceList, creationDate, comment, createdBy, encoding, info, infoHash);
     }
 
     public static byte[] encode(Object data) {
@@ -143,7 +153,8 @@ public class Bencode {
             case Number n -> encodeInteger(n.longValue());
             case List<?> list -> encodeList(list);
             case Map<?, ?> map -> encodeMap(map);
-            default -> throw new BencodeException("Invalid torrent format!");
+            default ->
+                    throw new IllegalArgumentException("Invalid torrent format! Only accept String, Number, List and Map");
         };
     }
 
@@ -207,4 +218,16 @@ public class Bencode {
         }
     }
 
+    public static void main(String[] args) {
+        Bencode.parse("./src/file.torrent");
+
+    }
+
+    public static class Pointer {
+        public int value;
+
+        public Pointer(int value) {
+            this.value = value;
+        }
+    }
 }
